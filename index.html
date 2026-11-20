@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="nl">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#f08a24">
-<title>MapleStream — maak je karakter</title>
+<title>MapleStream — create your character</title>
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -12,108 +12,105 @@
   <div class="top-inner">
     <a class="logo" href="./">🍁 <span id="siteTitle">MapleStream</span></a>
     <nav>
-      <button class="nav-btn active" data-page="builder">Karakter</button>
+      <button class="nav-btn active" data-page="builder">Character</button>
       <button class="nav-btn" data-page="commands">Commands</button>
-      <a class="nav-btn twitch" id="streamLink" target="_blank">Naar de stream</a>
+      <a class="nav-btn twitch" id="streamLink" target="_blank">Go back to stream</a>
     </nav>
   </div>
 </header>
 
 <main class="wrap">
-  <!-- ============ KARAKTER ============ -->
+  <!-- ============ CHARACTER ============ -->
   <section id="page-builder" class="page active">
     <div class="builder">
-      <!-- Voorbeeld -->
+      <!-- Preview -->
       <aside class="preview-card">
         <div class="scene">
-          <div class="cloud c1"></div><div class="cloud c2"></div><div class="cloud c3"></div>
-          <div class="hills"></div>
-          <div class="ground"></div>
           <div class="char-holder">
-            <img id="preview" alt="Jouw karakter">
-            <div class="loading" id="previewLoading">Laden…</div>
-            <div class="nametag">Jij</div>
+            <img id="preview" alt="Your character">
+            <div class="loading" id="previewLoading">Loading…</div>
+            <div class="nametag">You</div>
           </div>
         </div>
-        <p class="preview-error" id="previewError" hidden>Deze combinatie kon niet getekend worden. Probeer een ander item.</p>
+        <p class="preview-error" id="previewError" hidden>This combination could not be drawn. Try a different item.</p>
         <div class="chips" id="animButtons">
-          <button class="chip active" data-anim="stand1">Staan</button>
-          <button class="chip" data-anim="walk1">Lopen</button>
-          <button class="chip" data-anim="jump">Springen</button>
-          <button class="chip" data-anim="sit">Zitten</button>
-          <button class="chip" data-anim="prone">Liggen</button>
+          <button class="chip active" data-anim="stand1">Stand</button>
+          <button class="chip" data-anim="walk1">Walk</button>
+          <button class="chip" data-anim="jump">Jump</button>
+          <button class="chip" data-anim="sit">Sit</button>
+          <button class="chip" data-anim="prone">Prone</button>
         </div>
         <label class="emote-select">Emote:
-          <select id="emoteSelect"><option value="">geen</option></select>
+          <select id="emoteSelect"><option value="">none</option></select>
         </label>
       </aside>
 
-      <!-- Stappen -->
+      <!-- Steps -->
       <div class="steps-card">
         <div class="step-tabs">
-          <button class="step-tab active" data-step="1"><span>1</span> Uiterlijk</button>
+          <button class="step-tab active" data-step="1"><span>1</span> Look</button>
           <button class="step-tab" data-step="2"><span>2</span> Outfit</button>
-          <button class="step-tab" data-step="3"><span>3</span> Klaar</button>
+          <button class="step-tab" data-step="3"><span>3</span> Done</button>
         </div>
 
-        <!-- Stap 1 -->
+        <!-- Step 1 -->
         <div class="step active" id="step-1">
-          <h3>Geslacht</h3>
+          <h3>Gender</h3>
           <div class="chips" id="genderButtons">
-            <button class="chip" data-gender="0">Man</button>
-            <button class="chip" data-gender="1">Vrouw</button>
+            <button class="chip" data-gender="0">Male</button>
+            <button class="chip" data-gender="1">Female</button>
           </div>
 
-          <h3>Huid</h3>
+          <h3>Skin</h3>
           <div class="swatches" id="skinSwatches"></div>
 
-          <h3>Haar</h3>
+          <h3>Hair</h3>
           <div class="swatches" id="hairColors"></div>
-          <input class="search" id="hairSearch" type="search" placeholder="Zoek een kapsel…">
+          <input class="search" id="hairSearch" type="search" placeholder="Search a hairstyle…">
           <div class="grid looks" id="hairGrid"></div>
-          <button class="more" id="hairMore" hidden>Meer laden</button>
+          <button class="more" id="hairMore" hidden>Load more</button>
 
-          <h3>Gezicht</h3>
+          <h3>Face</h3>
           <div class="swatches" id="faceColors"></div>
-          <input class="search" id="faceSearch" type="search" placeholder="Zoek een gezicht…">
+          <input class="search" id="faceSearch" type="search" placeholder="Search a face…">
           <div class="grid looks" id="faceGrid"></div>
-          <button class="more" id="faceMore" hidden>Meer laden</button>
+          <button class="more" id="faceMore" hidden>Load more</button>
 
-          <div class="next-row"><button class="btn" data-goto="2">Verder naar outfit →</button></div>
+          <div class="next-row"><button class="btn" data-goto="2">Continue to outfit →</button></div>
         </div>
 
-        <!-- Stap 2 -->
+        <!-- Step 2 -->
         <div class="step" id="step-2">
-          <p class="hint">Kies per slot een item. Je outfit blijft hetzelfde tot je een nieuwe code in de chat plakt.</p>
+          <p class="hint">Pick an item for each slot. Your outfit stays the same until you paste a new code in chat.</p>
           <div class="slots" id="slotButtons"></div>
           <div class="slot-panel">
             <div class="slot-head">
-              <h3 id="slotTitle">Hoed</h3>
-              <button class="btn ghost small" id="slotClear">Niets dragen</button>
+              <h3 id="slotTitle">Hat</h3>
+              <button class="btn ghost small" id="slotClear">Wear nothing</button>
             </div>
-            <input class="search" id="itemSearch" type="search" placeholder="Zoek op naam…">
+            <input class="search" id="itemSearch" type="search" placeholder="Search by name…">
             <div class="grid items" id="itemGrid"></div>
             <p class="hint" id="itemStatus"></p>
-            <button class="more" id="itemMore" hidden>Meer laden</button>
+            <button class="more" id="itemMore" hidden>Load more</button>
           </div>
-          <label class="check"><input type="checkbox" id="showWeapon" checked> Toon mijn wapen en schild op stream</label>
-          <div class="next-row"><button class="btn" data-goto="3">Klaar →</button></div>
+          <label class="check"><input type="checkbox" id="showWeapon" checked> Show my weapon and shield on stream</label>
+          <div class="next-row"><button class="btn" data-goto="3">Done →</button></div>
         </div>
 
-        <!-- Stap 3 -->
+        <!-- Step 3 -->
         <div class="step" id="step-3">
-          <h3>Jouw code</h3>
-          <p>Kopieer dit commando en plak het in de Twitch-chat. Je karakter wordt dan op stream bijgewerkt en gekoppeld aan jouw Twitch-account.</p>
+          <h3>Your code</h3>
+          <p>Copy this command and paste it in the Twitch chat. Your character is then updated on stream and linked to your Twitch account.</p>
           <div class="code-box">
             <code id="codeText"></code>
-            <button class="btn" id="copyCode">Kopieer</button>
+            <button class="btn" id="copyCode">Copy</button>
           </div>
-          <p class="hint">Tip: typ later <code>!outfit</code> in de chat om een link te krijgen naar deze pagina met je huidige karakter.</p>
+          <p class="hint">Tip: type <code>!outfit</code> in chat later to get a link to this page with your current character.</p>
 
-          <h3>Bestaande code laden</h3>
+          <h3>Load an existing code</h3>
           <div class="row">
             <input class="search" id="loadCodeInput" type="text" placeholder="!outfit a.1jk.mbu…">
-            <button class="btn ghost" id="loadCode">Laden</button>
+            <button class="btn ghost" id="loadCode">Load</button>
           </div>
           <p class="hint" id="loadCodeMsg"></p>
         </div>
@@ -125,14 +122,14 @@
   <section id="page-commands" class="page">
     <div class="commands-card">
       <h2>Commands</h2>
-      <p class="hint">Alles wat je in de chat van de stream kunt typen.</p>
+      <p class="hint">Everything you can type in the stream chat.</p>
       <div id="commandList"></div>
     </div>
   </section>
 </main>
 
 <footer class="foot">
-  Fanproject, niet verbonden aan of goedgekeurd door Nexon. MapleStory-afbeeldingen via maplestory.io.
+  Fan project, not affiliated with or endorsed by Nexon. MapleStory images via maplestory.io.
 </footer>
 
 <script type="module" src="js/app.js"></script>

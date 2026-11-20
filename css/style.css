@@ -21,7 +21,7 @@ body {
   position: absolute; left: 0; right: 0; bottom: 0; height: 176px; /* 220 * 0.8 */
   background: url(../img/ground.webp) 0 0 / auto 100% repeat-x;
 }
-#world .mob { position: absolute; image-rendering: pixelated; background-repeat: no-repeat; will-change: left; }
+#world .mob { position: absolute; image-rendering: pixelated; will-change: left; }
 @media (prefers-reduced-motion: reduce) { #world .clouds { animation: none; } }
 button { font: inherit; color: inherit; }
 
@@ -133,32 +133,3 @@ code { background: #f3e8d6; padding: 1px 5px; border-radius: 4px; font-family: u
 .tile.noimg img { display: none; }
 .tile.noimg::before { content: "?"; font-size: 22px; color: var(--muted); }
 .loading { background: rgba(0,0,0,.45); padding: 2px 8px; border-radius: 6px; left: 50%; transform: translateX(-50%); white-space: nowrap; bottom: 120px; }
-
-/* ---- Home: collapsible sections ---- */
-.home-title { margin: 0 0 2px; font-size: 20px; }
-#sections { display: grid; gap: 8px; margin-top: 10px; }
-details.section { background: #fff; border: 1px solid #e3cfae; border-radius: 10px; overflow: hidden; }
-details.section[open] { border-color: var(--accent); box-shadow: 0 2px 0 rgba(201, 106, 16, .25); }
-details.section > summary { list-style: none; display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; user-select: none; }
-details.section > summary::-webkit-details-marker { display: none; }
-details.section > summary:hover { background: var(--card2); }
-.sec-title { font-weight: 700; min-width: 120px; }
-.sec-current { flex: 1; display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; min-width: 0; }
-.sec-current span:not(.cash-badge) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sec-current .cur-icon { width: 24px; height: 24px; object-fit: contain; image-rendering: pixelated; }
-.sec-chev { color: var(--muted); transition: transform .15s; }
-details.section[open] .sec-chev { transform: rotate(180deg); }
-.sec-body { padding: 4px 14px 14px; border-top: 1px solid #f0e2c8; }
-.sec-body h4 { font-size: 13px; margin: 10px 0 6px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
-.sec-body .row { align-items: center; margin: 10px 0 8px; }
-.sec-body .row .search { margin: 0; }
-
-.code-panel { margin-top: 14px; border-top: 1px dashed var(--line); padding-top: 10px; }
-.code-panel h3 { margin: 0 0 2px; }
-.code-panel .hint { margin: 0 0 8px; }
-
-/* NX (cash) item badge */
-.tile.cash::after { content: ""; position: absolute; top: 3px; right: 3px; width: 13px; height: 14px; background: url(../img/cash.png) center / contain no-repeat; pointer-events: none; }
-.cash-badge { display: inline-block; width: 13px; height: 14px; background: url(../img/cash.png) center / contain no-repeat; vertical-align: -2px; flex: none; }
-.cash-badge.small { width: 12px; height: 13px; }
-.btn { white-space: nowrap; }

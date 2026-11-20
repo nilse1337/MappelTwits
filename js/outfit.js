@@ -67,10 +67,12 @@ export function slotForId(id) {
 // of the items again when the code is read, so it is only used for !sit.
 const MAX_ITEMS = 16;
 export const isChair = (id) => id >= 3010000 && id < 3020000;
+// A chat ring (ID 1110000-1119999) works the same way: it only changes the chat balloon.
+export const isRing = (id) => id >= 1110000 && id < 1120000;
 
 export function encodeOutfit(look) {
   const flag = look.showWeapon === false ? 'b' : 'a';
-  const ids = [look.skin, ...look.items.filter((id) => !isChair(id)), ...(look.chair ? [look.chair] : [])].map((n) => Number(n).toString(36));
+  const ids = [look.skin, ...look.items.filter((id) => !isChair(id) && !isRing(id)), ...(look.chair ? [look.chair] : []), ...(look.ring ? [look.ring] : [])].map((n) => Number(n).toString(36));
   return [flag, ...ids].join('.');
 }
 
@@ -89,13 +91,16 @@ export function decodeOutfit(code) {
   if (!isSkin(skin)) return null;
   const items = [];
   let chair = null;
+  let ring = null;
   for (const id of rest) {
     if (!Number.isInteger(id) || id < 10000 || id > 9999999) return null;
     if (isChair(id)) chair = id;
+    else if (isRing(id)) ring = id;
     else if (!items.includes(id)) items.push(id);
   }
   const look = { skin, items, showWeapon: flag === 'a' };
   if (chair) look.chair = chair;
+  if (ring) look.ring = ring;
   return look;
 }
 
@@ -135,7 +140,7 @@ function itemsPath(look, emotion, chair) {
   const parts = [obj(look.skin), obj(look.skin + 10000)];
   for (const id of look.items) {
     if (look.showWeapon === false && isWeaponOrShield(id)) continue;
-    if (isChair(id)) continue; // a chair is only drawn when sitting (passed separately)
+    if (isChair(id) || isRing(id)) continue; // a chair is only drawn when sitting (passed separately)
     parts.push(emotion && isFace(id) ? obj(id, { animationName: emotion }) : obj(id));
   }
   if (chair) parts.push(obj(chair)); // maplestory.io then draws the character on the chair

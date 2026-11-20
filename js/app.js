@@ -47,7 +47,13 @@ const SLOTS = [
   { key: 'shield', label: 'Shield', queries: [['Armor', 'Shield']] },
   // Not worn: the character sits on this chair with !sit. Without one, !sit picks a random chair.
   { key: 'chair', label: 'Chair', overall: 'Setup', queries: [['Other', 'Chair']], none: 'Random chair', noneLabel: 'Random chair' },
+  // Not shown on the character: a chat ring gives your chat balloon on stream its own style
+  {
+    key: 'ring', label: 'Chat ring', queries: [['Accessory', 'Ring']], none: 'Normal balloon', noneLabel: 'Normal balloon',
+    allAtOnce: true, filter: (it) => /quote|chat|word bubble|thought bubble|speech bubble/i.test(it.name),
+  },
 ];
+const NOT_WORN = ['chair', 'ring']; // in the code, but not drawn on the character
 
 const PAGE = 60;
 const EAGER_ICONS = 12; // item icons (cheap, static) preloaded per closed section; drawn hair/face thumbnails load when opened
@@ -81,9 +87,10 @@ function lookupName(id, done) {
 function currentLook() {
   return {
     skin: state.skin,
-    items: [state.hair + state.hairColor, state.face + state.faceColor * 100, ...Object.entries(state.slots).filter(([k]) => k !== 'chair').map(([, id]) => id)],
+    items: [state.hair + state.hairColor, state.face + state.faceColor * 100, ...Object.entries(state.slots).filter(([k]) => !NOT_WORN.includes(k)).map(([, id]) => id)],
     showWeapon: state.showWeapon,
     ...(state.slots.chair ? { chair: state.slots.chair } : {}),
+    ...(state.slots.ring ? { ring: state.slots.ring } : {}),
   };
 }
 
@@ -114,6 +121,7 @@ function applyCode(code) {
     }
   }
   if (look.chair) state.slots.chair = look.chair;
+  if (look.ring) state.slots.ring = look.ring;
   return true;
 }
 
@@ -596,24 +604,24 @@ function slotSection(slot) {
     const run = q ? loader.start('Searching') : null;
     try {
       const lists = await Promise.all(slot.queries.map(([cat, sub]) => {
-        const params = { categoryFilter: cat, startPosition: start, count: PAGE };
+        const params = { categoryFilter: cat, startPosition: start, count: slot.allAtOnce ? 3000 : PAGE };
         if (slot.overall) params.overallCategoryFilter = slot.overall;
         if (sub) params.subCategoryFilter = sub;
         if (q) params.searchFor = q;
         return fetchList(params);
       }));
       if (my !== token) return;
-      start += PAGE;
-      for (const it of lists.flat().filter(genderOk)) {
+      start += slot.allAtOnce ? 3000 : PAGE;
+      for (const it of lists.flat().filter(genderOk).filter(slot.filter || (() => true))) {
         names.set(it.id, it);
         const { t, img } = makeTile(it, itemIconUrl(it.id), shown++ < EAGER_ICONS, () => pick(it));
         hoverPrefetch(t, () => {
           const slots = { ...state.slots, [slot.key]: it.id };
           if (slot.key === 'overall') { delete slots.top; delete slots.bottom; }
           if (slot.key === 'top' || slot.key === 'bottom') delete slots.overall;
-          const chair = slots.chair;
-          delete slots.chair;
-          return { skin: state.skin, items: [state.hair + state.hairColor, state.face + state.faceColor * 100, ...Object.values(slots)], showWeapon: state.showWeapon, chair };
+          const { chair, ring } = slots;
+          for (const k of NOT_WORN) delete slots[k];
+          return { skin: state.skin, items: [state.hair + state.hairColor, state.face + state.faceColor * 100, ...Object.values(slots)], showWeapon: state.showWeapon, chair, ring };
         });
         // Some items (e.g. cash weapons) have no icon: show the item on a small character instead
         img.onerror = () => {
@@ -623,7 +631,7 @@ function slotSection(slot) {
         };
         grid.appendChild(t);
       }
-      more.hidden = !lists.some((l) => l.length === PAGE);
+      more.hidden = slot.allAtOnce || !lists.some((l) => l.length === PAGE);
       status.textContent = grid.children.length ? '' : 'Nothing found.';
       if (run) loader.waitForImages(grid, run);
       markActive();

@@ -26,10 +26,10 @@
 </header>
 
 <main class="wrap">
-  <!-- ============ CHARACTER ============ -->
+  <!-- ============ CHARACTER (home) ============ -->
   <section id="page-builder" class="page active">
     <div class="builder">
-      <!-- Preview -->
+      <!-- Preview + code -->
       <aside class="preview-card">
         <div class="scene">
           <div class="char-holder">
@@ -38,7 +38,7 @@
             <div class="nametag">You</div>
           </div>
         </div>
-        <p class="preview-error" id="previewError" hidden>This combination could not be drawn. Try a different item.</p>
+        <p class="preview-error" id="previewError" hidden></p>
         <div class="chips" id="animButtons">
           <button class="chip active" data-anim="stand1">Stand</button>
           <button class="chip" data-anim="walk1">Walk</button>
@@ -49,77 +49,21 @@
         <label class="emote-select">Emote:
           <select id="emoteSelect"><option value="">none</option></select>
         </label>
-      </aside>
-
-      <!-- Steps -->
-      <div class="steps-card">
-        <div class="step-tabs">
-          <button class="step-tab active" data-step="1"><span>1</span> Look</button>
-          <button class="step-tab" data-step="2"><span>2</span> Outfit</button>
-          <button class="step-tab" data-step="3"><span>3</span> Done</button>
-        </div>
-
-        <!-- Step 1 -->
-        <div class="step active" id="step-1">
-          <h3>Gender</h3>
-          <div class="chips" id="genderButtons">
-            <button class="chip" data-gender="0">Male</button>
-            <button class="chip" data-gender="1">Female</button>
-          </div>
-
-          <h3>Skin</h3>
-          <div class="swatches" id="skinSwatches"></div>
-
-          <h3>Hair</h3>
-          <div class="swatches" id="hairColors"></div>
-          <input class="search" id="hairSearch" type="search" placeholder="Search a hairstyle…">
-          <div class="grid looks" id="hairGrid"></div>
-          <button class="more" id="hairMore" hidden>Load more</button>
-
-          <h3>Face</h3>
-          <div class="swatches" id="faceColors"></div>
-          <input class="search" id="faceSearch" type="search" placeholder="Search a face…">
-          <div class="grid looks" id="faceGrid"></div>
-          <button class="more" id="faceMore" hidden>Load more</button>
-
-          <div class="next-row"><button class="btn" data-goto="2">Continue to outfit →</button></div>
-        </div>
-
-        <!-- Step 2 -->
-        <div class="step" id="step-2">
-          <p class="hint">Pick an item for each slot. Your outfit stays the same until you paste a new code in chat.</p>
-          <div class="slots" id="slotButtons"></div>
-          <div class="slot-panel">
-            <div class="slot-head">
-              <h3 id="slotTitle">Hat</h3>
-              <button class="btn ghost small" id="slotClear">Wear nothing</button>
-            </div>
-            <input class="search" id="itemSearch" type="search" placeholder="Search by name…">
-            <div class="grid items" id="itemGrid"></div>
-            <p class="hint" id="itemStatus"></p>
-            <button class="more" id="itemMore" hidden>Load more</button>
-          </div>
-          <label class="check"><input type="checkbox" id="showWeapon" checked> Show my weapon and shield on stream</label>
-          <div class="next-row"><button class="btn" data-goto="3">Done →</button></div>
-        </div>
-
-        <!-- Step 3 -->
-        <div class="step" id="step-3">
+        <div class="code-panel">
           <h3>Your code</h3>
-          <p>Copy this command and paste it in the Twitch chat. Your character is then updated on stream and linked to your Twitch account.</p>
+          <p class="hint">Paste this in the Twitch chat to put this character on stream.</p>
           <div class="code-box">
             <code id="codeText"></code>
             <button class="btn" id="copyCode">Copy</button>
           </div>
-          <p class="hint">Tip: type <code>!outfit</code> in chat later to get a link to this page with your current character.</p>
-
-          <h3>Load an existing code</h3>
-          <div class="row">
-            <input class="search" id="loadCodeInput" type="text" placeholder="!outfit a.1jk.mbu…">
-            <button class="btn ghost" id="loadCode">Load</button>
-          </div>
-          <p class="hint" id="loadCodeMsg"></p>
         </div>
+      </aside>
+
+      <!-- Everything you can change, each part on its own -->
+      <div class="steps-card">
+        <h2 class="home-title">Create your character</h2>
+        <p class="hint">Open any part to change it. Items with <span class="cash-badge small"></span> are NX (cash) items.</p>
+        <div id="sections"></div>
       </div>
     </div>
   </section>

@@ -1,16 +1,16 @@
-// Gedeelde logica voor outfit-codes en het tekenen van karakters via maplestory.io.
-// Dit bestand wordt gebruikt door het programma, de overlay EN de website.
-// Pas je iets aan? Kopieer het dan ook naar website/js/outfit.js.
+// Shared logic for outfit codes and drawing characters via maplestory.io.
+// This file is used by the program, the overlay AND the website.
+// Changed something? Copy it to website/js/outfit.js as well.
 
 export const MAPLE_API = {
   base: 'https://maplestory.io',
   region: 'GMS',
-  version: '270', // wordt bij het opstarten bijgewerkt naar de nieuwste versie (zie resolveMapleVersion)
+  version: '270', // updated to the newest version at startup (see resolveMapleVersion)
 };
 
-// maplestory.io kent geen "latest": we zoeken de nieuwste GMS-versie op.
-// Node (het programma) kan de versielijst direct lezen. Browsers mogen dat niet (CORS),
-// dus daar proberen we vanaf de huidige versie omhoog tot er een 404 komt.
+// maplestory.io has no "latest": we look up the newest GMS version.
+// Node (the program) can read the version list directly. Browsers are not allowed to (CORS),
+// so there we count up from the current version until we get a 404.
 export async function resolveMapleVersion() {
   const { base, region } = MAPLE_API;
   try {
@@ -22,7 +22,7 @@ export async function resolveMapleVersion() {
     if (versions.length) MAPLE_API.version = String(Math.max(...versions));
     return MAPLE_API.version;
   } catch {
-    // waarschijnlijk een browser: zelf proberen
+    // probably a browser: probe ourselves
   }
   let v = Number(MAPLE_API.version);
   for (let i = 0; i < 10; i++) {
@@ -38,14 +38,14 @@ export async function resolveMapleVersion() {
   return MAPLE_API.version;
 }
 
-// ---------- Item-soorten op basis van ID ----------
+// ---------- Item types based on ID ----------
 export const isSkin = (id) => id >= 2000 && id < 3000;
 export const isFace = (id) => (id >= 20000 && id < 30000) || (id >= 50000 && id < 60000);
 export const isHair = (id) => (id >= 30000 && id < 50000) || (id >= 60000 && id < 70000);
 export const isWeaponOrShield = (id) =>
   (id >= 1090000 && id < 1100000) || (id >= 1200000 && id < 1800000);
 
-// Welk slot hoort bij een equip-ID (gebruikt door de website om een code terug te laden)
+// Which slot an equip ID belongs to (used by the website to load a code back)
 export function slotForId(id) {
   if (isHair(id)) return 'hair';
   if (isFace(id)) return 'face';
@@ -61,8 +61,8 @@ export function slotForId(id) {
 }
 
 // ---------- Outfit-code ----------
-// Formaat:  a.1jk.mbu.fk8...   (eerste teken: a = wapen tonen, b = wapen verbergen)
-// Daarna: skin-ID en item-ID's in base36, gescheiden door punten.
+// Format:  a.1jk.mbu.fk8...   (first character: a = show weapon, b = hide weapon)
+// Then: skin ID and item IDs in base36, separated by dots.
 const MAX_ITEMS = 16;
 
 export function encodeOutfit(look) {
@@ -92,8 +92,27 @@ export function decodeOutfit(code) {
   return { skin, items, showWeapon: flag === 'a' };
 }
 
-// ---------- Karakter-afbeelding ----------
+// ---------- Character image ----------
 export const ANIMATIONS = ['stand1', 'walk1', 'jump', 'sit', 'prone', 'alert'];
+
+// MapleStory emotes on the F keys. F1-F7 are the standard in-game expressions,
+// F8-F12 are bonus ones (in the game normally only via cash items).
+export const F_EMOTES = {
+  f1: 'hit', f2: 'smile', f3: 'troubled', f4: 'cry', f5: 'angry', f6: 'bewildered', f7: 'stunned',
+  f8: 'love', f9: 'wink', f10: 'glitter', f11: 'cheers', f12: 'vomit',
+};
+
+// Chairs that !sit picks from at random (all tested with male and female)
+export const CHAIRS = [
+  [3010000, 'The Relaxer'], [3010001, 'Sky-blue Wooden Chair'], [3010002, 'Green Chair'], [3010003, 'Red Chair'],
+  [3010007, 'Pink Seal Cushion'], [3010009, 'Red Round Chair'], [3010012, 'Warrior Throne'], [3010013, 'Pink Beach Chair'],
+  [3010014, 'Moon Star Chair'], [3010018, 'Palm Tree Beach Chair'], [3010019, 'Kadomatsu'], [3010020, 'Kotatsu'],
+  [3010021, 'Wooden Tub'], [3010023, 'Brown Polar Bear Chair'], [3010024, 'Pink Teddy Chair'], [3010025, 'Under the Maple Tree'],
+  [3010036, 'Maple Tree Chair'], [3010041, 'Skull Throne'], [3010043, 'Halloween Broomstick Chair'], [3010045, 'Ice Chair'],
+  [3010046, 'Dragon Chair (Inferno)'], [3010049, 'Igloo'], [3010053, 'Rabbit Sofa'], [3010055, 'Mochi Ice Cream Chair'],
+].map(([id, name]) => ({ id, name }));
+
+export const randomChair = () => CHAIRS[Math.floor(Math.random() * CHAIRS.length)].id;
 
 export const EMOTIONS = [
   'smile', 'wink', 'love', 'cheers', 'chu', 'glitter', 'shine', 'hum',
@@ -101,9 +120,9 @@ export const EMOTIONS = [
   'pain', 'despair', 'blaze', 'bowing', 'hot', 'dam', 'qBlue', 'hit',
 ];
 
-// maplestory.io verwacht een lijst JSON-objecten: lichaam (skin), hoofd (skin + 10000) en de items.
-// Een gezichtsuitdrukking geef je mee als animationName op het gezicht.
-function itemsPath(look, emotion) {
+// maplestory.io expects a list of JSON objects: body (skin), head (skin + 10000) and the items.
+// A facial expression is passed as animationName on the face.
+function itemsPath(look, emotion, chair) {
   const { region, version } = MAPLE_API;
   const obj = (itemId, extra) => JSON.stringify({ itemId, region, version, ...extra });
   const parts = [obj(look.skin), obj(look.skin + 10000)];
@@ -111,17 +130,18 @@ function itemsPath(look, emotion) {
     if (look.showWeapon === false && isWeaponOrShield(id)) continue;
     parts.push(emotion && isFace(id) ? obj(id, { animationName: emotion }) : obj(id));
   }
+  if (chair) parts.push(obj(chair)); // maplestory.io then draws the character on the chair
   return encodeURIComponent(parts.join(','));
 }
 
-// Geanimeerde GIF van het karakter
+// Animated GIF of the character
 export function characterGifUrl(look, animation = 'stand1', opts = {}) {
   const q = new URLSearchParams({ showears: 'false', resize: String(opts.scale || 1) });
   if (opts.flip) q.set('flipX', 'true');
-  return `${MAPLE_API.base}/api/character/${itemsPath(look, opts.emotion)}/${animation}/animated?${q}`;
+  return `${MAPLE_API.base}/api/character/${itemsPath(look, opts.emotion, opts.chair)}/${animation}/animated?${q}`;
 }
 
-// Stilstaand plaatje (één frame)
+// Still image (one frame)
 export function characterPngUrl(look, animation = 'stand1', frame = 0, opts = {}) {
   const q = new URLSearchParams({ showears: 'false', resize: String(opts.scale || 1) });
   return `${MAPLE_API.base}/api/character/${itemsPath(look, opts.emotion)}/${animation}/${frame}?${q}`;
@@ -132,25 +152,25 @@ export function itemIconUrl(id) {
   return `${base}/api/${region}/${version}/item/${id}/icon`;
 }
 
-// ---------- Beginner-presets (lokale assets) ----------
-// Klassieke beginnerslook. De sprites hiervan worden één keer gedownload
-// naar programma/public/assets/, zodat de overlay niet van maplestory.io afhangt.
+// ---------- Beginner presets (local assets) ----------
+// Classic beginner look. Its sprites are downloaded once
+// to programma/public/assets/, so the overlay does not depend on maplestory.io.
 export const PRESETS = {
   'beginner-m': {
-    name: 'Beginner (man)',
+    name: 'Beginner (male)',
     gender: 0,
-    // huid, Buzz-kapsel, Motivated Look, White Undershirt, Blue Jean Shorts, Red Rubber Boots
+    // skin, Buzz hair, Motivated Look, White Undershirt, Blue Jean Shorts, Red Rubber Boots
     look: { skin: 2000, items: [30030, 20000, 1040002, 1060002, 1072001], showWeapon: true },
   },
   'beginner-f': {
-    name: 'Beginner (vrouw)',
+    name: 'Beginner (female)',
     gender: 1,
-    // huid, Sammy-kapsel, Motivated Look, White Tubetop, Red Miniskirt, Red Rubber Boots
+    // skin, Sammy hair, Motivated Look, White Tubetop, Red Miniskirt, Red Rubber Boots
     look: { skin: 2000, items: [31000, 21000, 1041002, 1061002, 1072001], showWeapon: true },
   },
 };
 
-// stand1 = idle, walk1 = lopen; prone en alert zijn voor !prone en !dance
+// stand1 = idle, walk1 = walking; prone and alert are for !prone and !dance
 export const PRESET_ANIMATIONS = ['stand1', 'walk1', 'jump', 'sit', 'prone', 'alert'];
 
 const FEMALE_HAIR_GROUPS = [31, 34, 37, 38, 41, 44, 47, 48];
@@ -164,7 +184,7 @@ export function presetForLook(look) {
   return genderOfLook(look) === 1 ? 'beginner-f' : 'beginner-m';
 }
 
-// ---------- Standaard-look voor kijkers die nog niets hebben gekozen ----------
+// ---------- Default look for viewers who have not picked anything yet ----------
 export function randomDefaultLook() {
   const key = Math.random() < 0.5 ? 'beginner-m' : 'beginner-f';
   return { ...PRESETS[key].look, items: [...PRESETS[key].look.items], preset: key, isDefault: true };

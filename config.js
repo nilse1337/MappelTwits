@@ -1,6 +1,6 @@
-// Pas dit aan naar jouw kanaal.
+// Change this to match your channel.
 export const SITE = {
   title: 'MapleStream',
-  streamer: 'JouwNaam',          // getoond op de site
-  twitchChannel: 'jouwkanaal',   // je Twitch-kanaalnaam (voor de "Naar de stream"-knop)
+  streamer: 'YourName',          // shown on the site
+  twitchChannel: 'yourchannel',   // your Twitch channel name (for the "Go back to stream" button)
 };

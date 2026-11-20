@@ -45,6 +45,8 @@ const SLOTS = [
   { key: 'earrings', label: 'Earrings', queries: [['Accessory', 'Earrings']] },
   { key: 'weapon', label: 'Weapon', queries: [['One-Handed Weapon', null], ['Two-Handed Weapon', null]] },
   { key: 'shield', label: 'Shield', queries: [['Armor', 'Shield']] },
+  // Not worn: the character sits on this chair with !sit. Without one, !sit picks a random chair.
+  { key: 'chair', label: 'Chair', overall: 'Setup', queries: [['Other', 'Chair']], none: 'Random chair', noneLabel: 'Random chair' },
 ];
 
 const PAGE = 60;
@@ -79,10 +81,14 @@ function lookupName(id, done) {
 function currentLook() {
   return {
     skin: state.skin,
-    items: [state.hair + state.hairColor, state.face + state.faceColor * 100, ...Object.values(state.slots)],
+    items: [state.hair + state.hairColor, state.face + state.faceColor * 100, ...Object.entries(state.slots).filter(([k]) => k !== 'chair').map(([, id]) => id)],
     showWeapon: state.showWeapon,
+    ...(state.slots.chair ? { chair: state.slots.chair } : {}),
   };
 }
+
+// In the preview the chosen chair shows up with the Sit pose
+const previewOpts = () => ({ emotion: state.emotion || undefined, chair: state.anim === 'sit' ? state.slots.chair : undefined });
 
 function save() {
   try { localStorage.setItem('maplestream-look', encodeOutfit(currentLook())); } catch {}
@@ -107,6 +113,7 @@ function applyCode(code) {
       state.slots[slot] = id;
     }
   }
+  if (look.chair) state.slots.chair = look.chair;
   return true;
 }
 
@@ -127,6 +134,15 @@ function fetchList(params) {
     })).filter((it) => Number.isInteger(it.id))).catch((e) => { listCache.delete(url); throw e; }));
   }
   return listCache.get(url);
+}
+
+// In MapleStory the gender of a hairstyle or face is in its ID: the thousands digit
+// 0, 3, 5, 6 = male (30xxx, 33xxx, 35xxx, 36xxx…), 1, 4, 7, 8 = female (31xxx, 34xxx, 37xxx, 38xxx…), others = both.
+function lookGender(id) {
+  const d = Math.floor(id / 1000) % 10;
+  if ([0, 3, 5, 6].includes(d)) return 0;
+  if ([1, 4, 7, 8].includes(d)) return 1;
+  return 2;
 }
 
 const genderOk = (it) => it.gender === undefined || it.gender === null || it.gender === 2 || it.gender === state.gender;
@@ -191,7 +207,7 @@ function updatePreview(change) {
   if (change !== undefined) { lastChange = change; keepError = false; }
   clearTimeout(previewTimer);
   previewTimer = setTimeout(() => {
-    const url = characterGifUrl(currentLook(), state.anim, { emotion: state.emotion || undefined });
+    const url = characterGifUrl(currentLook(), state.anim, previewOpts());
     const img = $('preview');
     if (img.dataset.url === url) return;
     img.dataset.url = url;
@@ -271,6 +287,51 @@ function swatchRow(list, getActive, onPick, labels) {
   return { row, render };
 }
 
+// "Searching..." note with moving dots under a search box. Stays until the list has
+// arrived AND the first item pictures have loaded; after a few seconds it adds a hint.
+function makeSearchLoader(input) {
+  const box = el('div', 'search-loading');
+  box.innerHTML = '<span class="txt"></span><span class="dots"><i>.</i><i>.</i><i>.</i></span><span class="slow"> This can take a moment, new items are loaded from maplestory.io</span>';
+  box.hidden = true;
+  let run = 0;
+  let slowTimer;
+  const api = {
+    el: box,
+    start(text = 'Searching') {
+      run++;
+      box.querySelector('.txt').textContent = text;
+      box.hidden = false;
+      box.classList.remove('is-slow');
+      input.classList.add('is-loading');
+      clearTimeout(slowTimer);
+      slowTimer = setTimeout(() => box.classList.add('is-slow'), 2500);
+      return run;
+    },
+    stop(id) {
+      if (id !== undefined && id !== run) return; // a newer search is already running
+      clearTimeout(slowTimer);
+      box.hidden = true;
+      input.classList.remove('is-loading');
+    },
+    // keep the note until the first pictures in the grid are on screen (or 15 s have passed)
+    waitForImages(grid, id, max = 12) {
+      if (id !== run) return;
+      box.querySelector('.txt').textContent = 'Loading items';
+      const imgs = [...grid.querySelectorAll('img')].slice(0, max).filter((img) => !img.complete);
+      if (!imgs.length) return api.stop(id);
+      let left = imgs.length;
+      const done = () => { if (--left <= 0) api.stop(id); };
+      imgs.forEach((img) => {
+        img.loading = 'eager';
+        img.addEventListener('load', done, { once: true });
+        img.addEventListener('error', () => { if (!img.dataset.fallback) done(); }, { once: true });
+      });
+      setTimeout(() => api.stop(id), 15000);
+    },
+  };
+  return api;
+}
+
 // Start drawing the preview for a tile when the mouse rests on it, so a click shows it (almost) instantly
 function hoverPrefetch(tile, lookFn) {
   let timer;
@@ -278,7 +339,7 @@ function hoverPrefetch(tile, lookFn) {
     timer = setTimeout(() => {
       const img = new Image();
       img.fetchPriority = 'high';
-      img.src = characterGifUrl(lookFn(), state.anim, { emotion: state.emotion || undefined });
+      img.src = characterGifUrl(lookFn(), state.anim, previewOpts());
     }, 120);
   });
   tile.addEventListener('pointerleave', () => clearTimeout(timer));
@@ -351,6 +412,20 @@ function lookSection(kind) {
   const colors = isHair ? HAIR_COLORS : EYE_COLORS;
   const colorNames = isHair ? HAIR_COLOR_NAMES : EYE_COLOR_NAMES;
   const colorKey = isHair ? 'hairColor' : 'faceColor';
+  // Male / Female / All filter for this list (starts at the gender chosen under Body)
+  let sex = state.gender;
+  s.body.appendChild(el('h4', '', isHair ? 'Hairstyles for' : 'Faces for'));
+  const sexChips = el('div', 'chips');
+  const sexOptions = [['Male', 0], ['Female', 1], ['All', 2]];
+  const renderSex = () => sexChips.querySelectorAll('.chip').forEach((b, i) => b.classList.toggle('active', sexOptions[i][1] === sex));
+  for (const [label, value] of sexOptions) {
+    const b = el('button', 'chip');
+    b.textContent = label;
+    b.onclick = () => { sex = value; renderSex(); load(true); };
+    sexChips.appendChild(b);
+  }
+  renderSex();
+  s.body.appendChild(sexChips);
   s.body.appendChild(el('h4', '', isHair ? 'Hair colour' : 'Eye colour'));
   const sw = swatchRow(colors, () => state[colorKey], (i) => {
     state[colorKey] = i;
@@ -364,7 +439,9 @@ function lookSection(kind) {
   const grid = el('div', 'grid looks');
   const more = el('button', 'more', 'Load more');
   more.hidden = true;
-  s.body.append(search, grid, more);
+  const loader = makeSearchLoader(search);
+  const empty = el('p', 'hint');
+  s.body.append(search, loader.el, grid, empty, more);
 
   const isBase = isHair ? (id) => id % 10 === 0 : (id) => Math.floor(id / 100) % 10 === 0;
   const thumbUrl = (id) => characterPngUrl({
@@ -398,26 +475,32 @@ function lookSection(kind) {
     const my = ++token;
     if (reset) { start = 0; shown = 0; grid.innerHTML = ''; seen.clear(); }
     more.hidden = true;
+    empty.textContent = '';
+    const run = search.value.trim() ? loader.start('Searching') : null;
     try {
       let found = 0;
       let tries = 0;
+      let exhausted = false;
       while (found < 24 && tries < 4) {
         const params = { categoryFilter: 'Character', subCategoryFilter: isHair ? 'Hair' : 'Face', startPosition: start, count: 400 };
         if (search.value.trim()) params.searchFor = search.value.trim();
         const list = await fetchList(params);
         if (my !== token) return;
         start += list.length;
-        const items = list.filter((it) => isBase(it.id) && genderOk(it));
+        const items = list.filter((it) => isBase(it.id) && (sex === 2 || lookGender(it.id) === 2 || lookGender(it.id) === sex));
         addTiles(items);
         found += items.length;
         tries++;
-        if (list.length < 400) { refreshCurrent(); return; }
+        if (list.length < 400) { exhausted = true; break; }
       }
-      more.hidden = false;
-      if (!grid.children.length) throw new Error('empty');
+      more.hidden = exhausted;
+      if (!grid.children.length && !search.value.trim()) throw new Error('empty');
+      if (!grid.children.length) empty.textContent = 'Nothing found.';
+      if (run) loader.waitForImages(grid, run);
     } catch {
       if (my !== token) return;
-      if (!grid.children.length && !search.value.trim()) addTiles(FALLBACK[kind][state.gender].map((id) => ({ id })));
+      if (run) loader.stop(run);
+      if (!grid.children.length && !search.value.trim()) addTiles(FALLBACK[kind][sex === 1 ? 1 : 0].map((id) => ({ id })));
     }
     refreshCurrent();
   }
@@ -438,13 +521,14 @@ function lookSection(kind) {
   let searchTimer;
   search.addEventListener('input', () => {
     clearTimeout(searchTimer);
+    if (search.value.trim()) loader.start('Searching'); else loader.stop();
     searchTimer = setTimeout(() => load(true), 350);
   });
   more.onclick = () => load(false);
 
   sections.push({
     details: s.details,
-    load: () => enqueue(() => load(true)),
+    load: () => { sex = state.gender; renderSex(); return enqueue(() => load(true)); },
     reloadOnGender: true,
     refresh() {
       sw.render();
@@ -467,9 +551,11 @@ function slotSection(slot) {
   const search = el('input', 'search');
   search.type = 'search';
   search.placeholder = 'Search by name…';
-  const none = el('button', 'btn ghost small', 'Wear nothing');
+  const none = el('button', 'btn ghost small', slot.none || 'Wear nothing');
   top.append(search, none);
   s.body.appendChild(top);
+  const loader = makeSearchLoader(search);
+  s.body.appendChild(loader.el);
   if (slot.key === 'weapon') {
     const lab = el('label', 'check', '<input type="checkbox"> Show my weapon and shield on stream');
     const box = lab.querySelector('input');
@@ -495,6 +581,7 @@ function slotSection(slot) {
     // an overall replaces top + bottom, and the other way round
     if (id != null && slot.key === 'overall') { delete state.slots.top; delete state.slots.bottom; }
     if (id != null && (slot.key === 'top' || slot.key === 'bottom')) delete state.slots.overall;
+    if (slot.key === 'chair') setAnim(id != null ? 'sit' : state.anim); // show the chair right away
     refreshAllSections();
     updatePreview(id == null ? '' : (it.name || `Item ${id}`));
   }
@@ -504,11 +591,13 @@ function slotSection(slot) {
     const my = ++token;
     if (reset) { start = 0; shown = 0; grid.innerHTML = ''; }
     more.hidden = true;
-    status.textContent = 'Loading…';
+    const q = search.value.trim();
+    status.textContent = q ? '' : 'Loading…';
+    const run = q ? loader.start('Searching') : null;
     try {
-      const q = search.value.trim();
       const lists = await Promise.all(slot.queries.map(([cat, sub]) => {
         const params = { categoryFilter: cat, startPosition: start, count: PAGE };
+        if (slot.overall) params.overallCategoryFilter = slot.overall;
         if (sub) params.subCategoryFilter = sub;
         if (q) params.searchFor = q;
         return fetchList(params);
@@ -522,7 +611,9 @@ function slotSection(slot) {
           const slots = { ...state.slots, [slot.key]: it.id };
           if (slot.key === 'overall') { delete slots.top; delete slots.bottom; }
           if (slot.key === 'top' || slot.key === 'bottom') delete slots.overall;
-          return { skin: state.skin, items: [state.hair + state.hairColor, state.face + state.faceColor * 100, ...Object.values(slots)], showWeapon: state.showWeapon };
+          const chair = slots.chair;
+          delete slots.chair;
+          return { skin: state.skin, items: [state.hair + state.hairColor, state.face + state.faceColor * 100, ...Object.values(slots)], showWeapon: state.showWeapon, chair };
         });
         // Some items (e.g. cash weapons) have no icon: show the item on a small character instead
         img.onerror = () => {
@@ -534,10 +625,12 @@ function slotSection(slot) {
       }
       more.hidden = !lists.some((l) => l.length === PAGE);
       status.textContent = grid.children.length ? '' : 'Nothing found.';
+      if (run) loader.waitForImages(grid, run);
       markActive();
       refreshCurrent();
     } catch {
       if (my !== token) return;
+      if (run) loader.stop(run);
       status.textContent = 'The item list from maplestory.io is not loading. Please try again later.';
     }
   }
@@ -548,7 +641,7 @@ function slotSection(slot) {
 
   function refreshCurrent() {
     const id = state.slots[slot.key];
-    if (!id) return setCurrent(s.current, { label: 'None' });
+    if (!id) return setCurrent(s.current, { label: slot.noneLabel || 'None' });
     const info = names.get(id);
     setCurrent(s.current, { icon: itemIconUrl(id), label: info?.name || `Item ${id}`, cash: info?.isCash });
     if (!info) lookupName(id, () => names.has(id) && state.slots[slot.key] === id && refreshCurrent());
@@ -557,6 +650,7 @@ function slotSection(slot) {
   let searchTimer;
   search.addEventListener('input', () => {
     clearTimeout(searchTimer);
+    if (search.value.trim()) loader.start('Searching'); else loader.stop();
     searchTimer = setTimeout(() => load(true), 350);
   });
   more.onclick = () => load(false);
@@ -598,10 +692,13 @@ function refreshAllSections(reloadLists = false) {
 }
 
 // ---------------- Preview controls & code ----------------
+function setAnim(anim) {
+  state.anim = anim;
+  document.querySelectorAll('#animButtons .chip').forEach((x) => x.classList.toggle('active', x.dataset.anim === anim));
+}
 document.querySelectorAll('#animButtons .chip').forEach((b) => {
   b.onclick = () => {
-    state.anim = b.dataset.anim;
-    document.querySelectorAll('#animButtons .chip').forEach((x) => x.classList.toggle('active', x === b));
+    setAnim(b.dataset.anim);
     updatePreview('That pose');
   };
 });
@@ -638,12 +735,18 @@ const COMMAND_GROUPS = [
   { title: 'Your character', items: [
     ['!outfit CODE', 'Set your character with the code from this site'],
     ['!outfit', 'Link to this site with your current character'],
+    ['!name NAME', 'Change the name under your character (!name reset = your Twitch name)'],
     ['!help', 'List of commands'],
   ] },
   { title: 'For the streamer and moderators', items: [
     ['!dance all', 'Everyone on screen dances, in step', true],
     ['!panic', 'Everyone runs around in panic for 10 seconds, even seated characters', true],
-    ['!size NAME 1.5', 'Change the size of one character (0.25 to 5, or "reset")', true],
+    ['!size NAME 1.5', 'Change the size of one character (0.25 to 10, or "reset")', true],
+    ['!resetname NAME', 'Give a viewer their Twitch name back', true],
+    ['!setname NAME New Name', "Change a viewer's character name", true],
+    ['!lockname NAME', 'Stop a viewer from using !name (!unlockname to undo)', true],
+    ['!kick NAME', 'Remove a character from the screen (comes back when they chat)', true],
+    ['!ban NAME', 'Remove a character and block it from coming back (!unban to undo)', true],
     ['!refresh', 'Fully reload the overlay, e.g. when a character does not update', true],
   ] },
 ];

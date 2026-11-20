@@ -162,3 +162,15 @@ details.section[open] .sec-chev { transform: rotate(180deg); }
 .cash-badge { display: inline-block; width: 13px; height: 14px; background: url(../img/cash.png) center / contain no-repeat; vertical-align: -2px; flex: none; }
 .cash-badge.small { width: 12px; height: 13px; }
 .btn { white-space: nowrap; }
+
+/* Search: red pulsing border + "Searching..." with moving dots while items load */
+.search.is-loading, .search.is-loading:focus { outline: 2px solid #d9363e; outline-offset: 0; border-color: #d9363e; box-shadow: 0 0 0 2px rgba(217, 54, 62, .18); animation: search-pulse 1.2s ease-in-out infinite; }
+@keyframes search-pulse { 50% { box-shadow: 0 0 0 4px rgba(217, 54, 62, .08); } }
+.search-loading { color: #c62f37; font-size: 13px; font-weight: 600; margin: -2px 0 8px; }
+.sec-body .row + .search-loading { margin-top: 6px; }
+.search-loading .dots i { font-style: normal; display: inline-block; animation: search-dot 1.2s infinite; }
+.search-loading .dots i:nth-child(2) { animation-delay: .2s; }
+.search-loading .dots i:nth-child(3) { animation-delay: .4s; }
+@keyframes search-dot { 0%, 60%, 100% { opacity: .2; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-3px); } }
+.search-loading .slow { display: none; font-weight: 400; color: var(--muted); }
+.search-loading.is-slow .slow { display: inline; }

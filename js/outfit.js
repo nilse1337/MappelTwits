@@ -63,11 +63,14 @@ export function slotForId(id) {
 // ---------- Outfit-code ----------
 // Format:  a.1jk.mbu.fk8...   (first character: a = show weapon, b = hide weapon)
 // Then: skin ID and item IDs in base36, separated by dots.
+// A chosen chair (ID 3010000-3019999) is just one more ID in the list; it is taken out
+// of the items again when the code is read, so it is only used for !sit.
 const MAX_ITEMS = 16;
+export const isChair = (id) => id >= 3010000 && id < 3020000;
 
 export function encodeOutfit(look) {
   const flag = look.showWeapon === false ? 'b' : 'a';
-  const ids = [look.skin, ...look.items].map((n) => Number(n).toString(36));
+  const ids = [look.skin, ...look.items.filter((id) => !isChair(id)), ...(look.chair ? [look.chair] : [])].map((n) => Number(n).toString(36));
   return [flag, ...ids].join('.');
 }
 
@@ -85,11 +88,15 @@ export function decodeOutfit(code) {
   const [skin, ...rest] = nums;
   if (!isSkin(skin)) return null;
   const items = [];
+  let chair = null;
   for (const id of rest) {
     if (!Number.isInteger(id) || id < 10000 || id > 9999999) return null;
-    if (!items.includes(id)) items.push(id);
+    if (isChair(id)) chair = id;
+    else if (!items.includes(id)) items.push(id);
   }
-  return { skin, items, showWeapon: flag === 'a' };
+  const look = { skin, items, showWeapon: flag === 'a' };
+  if (chair) look.chair = chair;
+  return look;
 }
 
 // ---------- Character image ----------
@@ -128,6 +135,7 @@ function itemsPath(look, emotion, chair) {
   const parts = [obj(look.skin), obj(look.skin + 10000)];
   for (const id of look.items) {
     if (look.showWeapon === false && isWeaponOrShield(id)) continue;
+    if (isChair(id)) continue; // a chair is only drawn when sitting (passed separately)
     parts.push(emotion && isFace(id) ? obj(id, { animationName: emotion }) : obj(id));
   }
   if (chair) parts.push(obj(chair)); // maplestory.io then draws the character on the chair

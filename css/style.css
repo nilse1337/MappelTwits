@@ -5,12 +5,24 @@
 * { box-sizing: border-box; }
 body {
   margin: 0; min-height: 100vh; color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
-  /* MapleStory background: Henesys (via maplestory.io) under a blue sky */
-  background:
-    url(../img/henesys.webp) center bottom / auto 340px repeat-x fixed,
-    linear-gradient(#3f9ff0 0%, #7cc4fb 45%, #c4e8ff 100%) fixed;
+  background: #3366cc; /* MapleStory sky blue (Map/Back/grassySoil) */
 }
-@media (max-width: 820px) { body { background-size: auto 220px, auto; } }
+
+/* ---- Animated MapleStory background ---- */
+#world { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none;
+  background: linear-gradient(#2a58b8, #3366cc 40%); }
+#world .clouds {
+  position: absolute; left: 0; right: 0; bottom: 120px; height: 463px; /* 579 * 0.8 */
+  background: url(../img/sky-clouds.webp) 0 100% / auto 100% repeat-x;
+  animation: clouds 160s linear infinite;
+}
+@keyframes clouds { from { background-position-x: 0; } to { background-position-x: -819px; } } /* 1024 * 0.8 = one full image: seamless */
+#world .ground {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 176px; /* 220 * 0.8 */
+  background: url(../img/ground.webp) 0 0 / auto 100% repeat-x;
+}
+#world .mob { position: absolute; image-rendering: pixelated; will-change: left; }
+@media (prefers-reduced-motion: reduce) { #world .clouds { animation: none; } }
 button { font: inherit; color: inherit; }
 
 /* Header */
@@ -116,3 +128,8 @@ code { background: #f3e8d6; padding: 1px 5px; border-radius: 4px; font-family: u
 .cmd .badge { font-size: 11px; background: #ffe2b8; color: #a35a0c; padding: 1px 7px; border-radius: 99px; margin-left: 6px; }
 
 .foot { position: fixed; left: 0; right: 0; bottom: 0; text-align: center; color: #fff; font-size: 12px; padding: 6px 18px; background: rgba(40, 25, 10, .55); }
+
+/* item without icon or drawing */
+.tile.noimg img { display: none; }
+.tile.noimg::before { content: "?"; font-size: 22px; color: var(--muted); }
+.loading { background: rgba(0,0,0,.45); padding: 2px 8px; border-radius: 6px; left: 50%; transform: translateX(-50%); white-space: nowrap; bottom: 120px; }

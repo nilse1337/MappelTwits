@@ -112,20 +112,79 @@ async function fetchItems(category, sub, search, start) {
 
 const genderOk = (it) => it.gender === undefined || it.gender === null || it.gender === 2 || it.gender === state.gender;
 
-// ---------------- Voorbeeld ----------------
+// ---------------- Preview ----------------
+// maplestory.io draws every new combination live; some items take several seconds, a few never work.
+const PREVIEW_TIMEOUT_MS = 25000;
 let previewTimer;
-function updatePreview() {
+let previewTimeout;
+let lastGood = null;   // last state that was drawn successfully
+let lastChange = '';   // description of the last change, for the error message
+let keepError = false; // keep the 'undone' message visible until the next change
+
+function snapshot() {
+  return JSON.stringify({
+    skin: state.skin, hair: state.hair, hairColor: state.hairColor, face: state.face, faceColor: state.faceColor,
+    slots: state.slots, showWeapon: state.showWeapon, gender: state.gender,
+  });
+}
+
+function restore(snap) {
+  Object.assign(state, JSON.parse(snap));
+  $('showWeapon').checked = state.showWeapon;
+  renderLookSwatches();
+  renderSlotButtons();
+  hairList.refresh();
+  faceList.refresh();
+  document.querySelectorAll('#itemGrid .tile').forEach((t) => t.classList.toggle('active', Number(t.dataset.id) === state.slots[state.activeSlot]));
+}
+
+function previewFailed(url) {
+  const img = $('preview');
+  if (img.dataset.url !== url) return;
+  clearTimeout(previewTimeout);
+  $('previewLoading').hidden = true;
+  if (lastGood && lastGood !== snapshot()) {
+    $('previewError').textContent = `${lastChange || 'That item'} can't be drawn by maplestory.io right now, so it was undone. Try another one.`;
+    $('previewError').hidden = false;
+    keepError = true;
+    restore(lastGood);
+    img.dataset.url = '';
+    updatePreview();
+  } else {
+    $('previewError').textContent = 'maplestory.io is not responding. Please try again in a moment.';
+    $('previewError').hidden = false;
+  }
+}
+
+function updatePreview(change) {
+  if (change !== undefined) { lastChange = change; keepError = false; }
   clearTimeout(previewTimer);
   previewTimer = setTimeout(() => {
     const url = characterGifUrl(currentLook(), state.anim, { emotion: state.emotion || undefined });
     const img = $('preview');
     if (img.dataset.url === url) return;
     img.dataset.url = url;
+    $('previewLoading').textContent = 'Drawing your character…';
     $('previewLoading').hidden = false;
-    $('previewError').hidden = true;
+    clearTimeout(previewTimeout);
+    // still busy after a few seconds: explain why
+    setTimeout(() => {
+      if (img.dataset.url === url && !$('previewLoading').hidden) {
+        $('previewLoading').textContent = 'New items can take a few seconds…';
+      }
+    }, 3000);
+    previewTimeout = setTimeout(() => previewFailed(url), PREVIEW_TIMEOUT_MS);
+    const snap = snapshot();
     const test = new Image();
-    test.onload = () => { if (img.dataset.url === url) { img.src = url; $('previewLoading').hidden = true; } };
-    test.onerror = () => { if (img.dataset.url === url) { $('previewLoading').hidden = true; $('previewError').hidden = false; } };
+    test.onload = () => {
+      if (img.dataset.url !== url) return;
+      clearTimeout(previewTimeout);
+      img.src = url;
+      $('previewLoading').hidden = true;
+      if (!keepError) $('previewError').hidden = true;
+      lastGood = snap;
+    };
+    test.onerror = () => previewFailed(url);
     test.src = url;
   }, 150);
   updateCode();
@@ -151,13 +210,13 @@ function renderSwatches(el, list, active, onPick, names) {
 
 function renderLookSwatches() {
   renderSwatches($('skinSwatches'), SKINS, SKINS.findIndex((s) => s.id === state.skin), (i) => {
-    state.skin = SKINS[i].id; renderLookSwatches(); refreshLookThumbs(); updatePreview();
+    state.skin = SKINS[i].id; renderLookSwatches(); refreshLookThumbs(); updatePreview('That skin');
   });
   renderSwatches($('hairColors'), HAIR_COLORS, state.hairColor, (i) => {
-    state.hairColor = i; renderLookSwatches(); refreshLookThumbs(); updatePreview();
+    state.hairColor = i; renderLookSwatches(); refreshLookThumbs(); updatePreview('That hair colour');
   }, HAIR_COLOR_NAMES);
   renderSwatches($('faceColors'), EYE_COLORS, state.faceColor, (i) => {
-    state.faceColor = i; renderLookSwatches(); refreshLookThumbs(); updatePreview();
+    state.faceColor = i; renderLookSwatches(); refreshLookThumbs(); updatePreview('That eye colour');
   }, EYE_COLOR_NAMES);
   document.querySelectorAll('#genderButtons .chip').forEach((b) => b.classList.toggle('active', Number(b.dataset.gender) === state.gender));
 }
@@ -194,7 +253,7 @@ function makeLookList(kind) {
         state[kind] = it.id;
         grid.querySelectorAll('.tile').forEach((x) => x.classList.toggle('active', x === t));
         if (kind === 'hair') faceList.refresh(); else hairList.refresh();
-        updatePreview();
+        updatePreview(kind === 'hair' ? 'That hairstyle' : 'That face');
       };
       grid.appendChild(t);
     }
@@ -282,7 +341,7 @@ document.querySelectorAll('#genderButtons .chip').forEach((b) => {
     hairList.load(true);
     faceList.load(true);
     renderSlotButtons();
-    updatePreview();
+    updatePreview('That look');
   };
 });
 
@@ -320,9 +379,17 @@ async function loadSlotItems(reset) {
       const t = document.createElement('button');
       t.className = 'tile' + (state.slots[slot.key] === it.id ? ' active' : '');
       t.title = it.name ? `${it.name} (${it.id})` : String(it.id);
+      t.dataset.id = it.id;
       t.innerHTML = `<img loading="lazy" src="${itemIconUrl(it.id)}" alt=""><span class="label"></span>`;
       t.querySelector('.label').textContent = it.name;
-      t.onclick = () => selectItem(slot.key, it.id);
+      // Some items (e.g. cash weapons) have no icon: show the item on a small character instead
+      const icon = t.querySelector('img');
+      icon.onerror = () => {
+        if (icon.dataset.fallback) { t.classList.add('noimg'); return; }
+        icon.dataset.fallback = '1';
+        icon.src = characterPngUrl({ skin: state.skin, items: [it.id], showWeapon: true }, 'stand1', 0);
+      };
+      t.onclick = () => selectItem(slot.key, it.id, it.name);
       grid.appendChild(t);
     }
     const anyFull = lists.some((l) => l.length === PAGE);
@@ -334,15 +401,15 @@ async function loadSlotItems(reset) {
   }
 }
 
-function selectItem(slot, id) {
+function selectItem(slot, id, name) {
   if (id == null) delete state.slots[slot];
   else state.slots[slot] = id;
   // overall vervangt shirt + broek, en andersom
   if (id != null && slot === 'overall') { delete state.slots.top; delete state.slots.bottom; }
   if (id != null && (slot === 'top' || slot === 'bottom')) delete state.slots.overall;
   renderSlotButtons();
-  document.querySelectorAll('#itemGrid .tile').forEach((t) => t.classList.toggle('active', t.title.endsWith(`(${id})`) || t.title === String(id)));
-  updatePreview();
+  document.querySelectorAll('#itemGrid .tile').forEach((t) => t.classList.toggle('active', Number(t.dataset.id) === id));
+  updatePreview(id == null ? '' : (name || `Item ${id}`));
 }
 
 let itemSearchTimer;
@@ -352,7 +419,7 @@ $('itemSearch').addEventListener('input', () => {
 });
 $('itemMore').onclick = () => loadSlotItems(false);
 $('slotClear').onclick = () => selectItem(state.activeSlot, null);
-$('showWeapon').onchange = (e) => { state.showWeapon = e.target.checked; updatePreview(); };
+$('showWeapon').onchange = (e) => { state.showWeapon = e.target.checked; updatePreview('Showing the weapon'); };
 
 // ---------------- Stap 3: code ----------------
 $('copyCode').onclick = async () => {
@@ -387,7 +454,7 @@ document.querySelectorAll('#animButtons .chip').forEach((b) => {
   b.onclick = () => {
     state.anim = b.dataset.anim;
     document.querySelectorAll('#animButtons .chip').forEach((x) => x.classList.toggle('active', x === b));
-    updatePreview();
+    updatePreview('That pose');
   };
 });
 
@@ -397,7 +464,7 @@ for (const [key, e] of Object.entries(F_EMOTES)) {
   o.textContent = `${key.toUpperCase()} (${e})`;
   $('emoteSelect').appendChild(o);
 }
-$('emoteSelect').onchange = (e) => { state.emotion = e.target.value; updatePreview(); };
+$('emoteSelect').onchange = (e) => { state.emotion = e.target.value; updatePreview('That emote'); };
 
 // ---------------- Commands-pagina ----------------
 const COMMAND_GROUPS = [
@@ -414,7 +481,7 @@ const COMMAND_GROUPS = [
   { title: 'For the streamer and moderators', items: [
     ['!dance all', 'Everyone on screen dances, in step', true],
     ['!panic', 'Everyone runs around in panic for 10 seconds, even seated characters', true],
-    ['!size NAME 1.5', 'Change the size of one character (0.25 to 4, or "reset")', true],
+    ['!size NAME 1.5', 'Change the size of one character (0.25 to 5, or "reset")', true],
     ['!refresh', 'Fully reload the overlay, e.g. when a character does not update', true],
   ] },
 ];
@@ -451,7 +518,7 @@ function rerenderAll() {
   faceList.load(true);
   renderSlotButtons();
   if ($('itemGrid').children.length) loadSlotItems(true);
-  updatePreview();
+  updatePreview('That code');
 }
 
 document.title = `${SITE.title} — create your character`;
